@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ChainLab | SDN Service Function Chaining</title>
+  <style>
+    :root { font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #e9f1f4;
+      background: #08121b; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: radial-gradient(circle at 90% 0%, #163b48 0, transparent 38%),
+      radial-gradient(circle at 0% 60%, #172745 0, transparent 35%), #08121b; min-height: 100vh; }
+    main { width: min(1180px, calc(100% - 40px)); margin: 0 auto; padding: 38px 0 72px; }
+    header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 32px; }
+    .eyebrow { color: #53d5bf; letter-spacing: .18em; text-transform: uppercase; font-size: 12px; font-weight: 800; }
+    h1 { font-size: clamp(36px, 5vw, 64px); letter-spacing: -.06em; line-height: 1; margin: 10px 0 12px; }
+    h2 { font-size: 17px; letter-spacing: -.02em; margin: 0 0 18px; }
+    p { color: #9eb2bf; line-height: 1.5; margin: 0; }
+    .pill { border: 1px solid #2d5155; border-radius: 100px; padding: 9px 14px;
+      color: #65dbba; background: #102c32; white-space: nowrap; font-size: 13px; font-weight: 700; }
+    .pill.warn { color: #ffc57b; border-color: #76502e; background: #332315; }
+    .panel { background: rgba(12, 27, 39, .9); border: 1px solid #29404e; border-radius: 22px;
+      padding: 24px; box-shadow: 0 18px 50px #0002; }
+    .pipeline { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); align-items: stretch;
+      gap: 12px; margin: 20px 0; }
+    .node { min-height: 130px; border-radius: 17px; border: 1px solid #345362;
+      background: linear-gradient(160deg, #1c3d49, #112631); padding: 16px 10px;
+      display: flex; flex-direction: column; justify-content: space-between; text-align: center; }
+    .node.vnf { border-color: #4b8e88; background: linear-gradient(160deg, #185057, #12343c); }
+    .node .icon { font-size: 28px; }
+    .node strong { display: block; font-size: 14px; }
+    .node small { display: block; color: #9fbfc3; font-size: 11px; margin-top: 3px; }
+    .route { color: #60cbb8; border: 1px dashed #47837d; background: #0c2c33; border-radius: 12px;
+      padding: 10px 14px; font-size: 13px; }
+    .layout { display: grid; grid-template-columns: 1.1fr .9fr; gap: 18px; margin-top: 18px; }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .stat { border: 1px solid #2a4552; background: #0d2230; border-radius: 14px; padding: 15px; }
+    .stat b { font-size: 28px; display: block; font-variant-numeric: tabular-nums; margin-bottom: 4px; }
+    .stat span { font-size: 11px; color: #9cb2bf; text-transform: uppercase; letter-spacing: .08em; }
+    .controls { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 18px; }
+    button { cursor: pointer; border: 1px solid #387d78; border-radius: 10px; padding: 10px 13px;
+      color: #d6fff4; background: #1b5355; font-weight: 700; }
+    button:hover { background: #25706d; }
+    button.secondary { border-color: #476073; background: #213747; }
+    button.danger { border-color: #805143; background: #57362d; }
+    input { width: 100%; border: 1px solid #426071; border-radius: 10px; padding: 11px 12px;
+      background: #091b28; color: #f0fafb; margin-top: 8px; }
+    label { font-size: 12px; color: #adc3cc; }
+    .event { display: grid; grid-template-columns: 64px 92px 1fr; gap: 10px; border-top: 1px solid #27414d;
+      padding: 11px 0; font-size: 13px; align-items: start; }
+    .event time { color: #8ba7b6; }
+    .event em { font-style: normal; color: #60d6bf; text-transform: uppercase; font-size: 11px; font-weight: 800; }
+    .event span { color: #d9e6ea; overflow-wrap: anywhere; }
+    .flow { border-top: 1px solid #27414d; padding: 12px 0; font-size: 13px; }
+    .flow strong { color: #effafc; }
+    .flow small { color: #9bb2bc; display: block; margin-top: 5px; overflow-wrap: anywhere; }
+    #message { color: #ffca86; min-height: 22px; font-size: 13px; margin-top: 12px; }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } .pipeline { overflow-x: auto;
+      grid-template-columns: repeat(7, 135px); } }
+    @media (max-width: 600px) { header { flex-direction: column; } .stats { grid-template-columns: repeat(2, 1fr); } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div><div class="eyebrow">Advanced Computer Networks · Live demo</div>
+      <h1>ChainLab</h1>
+      <p>One network. Two paths. A controller that changes its mind when the IDS speaks.</p>
+    </div>
+    <div id="health" class="pill warn">Connecting…</div>
+  </header>
+
+  <section class="panel">
+    <h2>The packet journey</h2>
+    <div class="pipeline">
+      <div class="node"><span class="icon">◉</span><div><strong>h1</strong><small>10.0.0.1</small></div></div>
+      <div class="node"><span class="icon">▥</span><div><strong>s1</strong><small>OpenFlow ingress</small></div></div>
+      <div class="node vnf"><span class="icon">◇</span><div><strong>Firewall</strong><small>VLAN 101 · nftables</small></div></div>
+      <div class="node vnf"><span class="icon">⌕</span><div><strong>IDS</strong><small>VLAN 102 · signature</small></div></div>
+      <div class="node vnf"><span class="icon">≋</span><div><strong>Policer</strong><small>VLAN 103 · 1 Mbit/s</small></div></div>
+      <div class="node"><span class="icon">▥</span><div><strong>s2</strong><small>OpenFlow egress</small></div></div>
+      <div class="node"><span class="icon">◉</span><div><strong>h2</strong><small>10.0.0.2</small></div></div>
+    </div>
+    <div class="route" id="route">Trusted TCP/8080 and ICMP bypass all three VNFs over s1 → s2.</div>
+  </section>
+
+  <div class="layout">
+    <section class="panel">
+      <h2>Live flow counters</h2>
+      <div class="stats">
+        <div class="stat"><b id="ingress">0</b><span>Entered chain</span></div>
+        <div class="stat"><b id="firewall">0</b><span>Left firewall</span></div>
+        <div class="stat"><b id="ids">0</b><span>Left IDS</span></div>
+        <div class="stat"><b id="policer">0</b><span>Left policer</span></div>
+      </div>
+      <p style="margin:16px 0">TCP/80 policy: <strong id="policy">loading…</strong> · Quarantine: <strong id="quarantine">none</strong></p>
+      <label for="token">Control token (printed by run_demo.sh)</label>
+      <input id="token" type="password" placeholder="Paste token to use controls" autocomplete="off">
+      <div class="controls">
+        <button id="chain">Chain TCP/80</button>
+        <button id="bypass" class="secondary">Bypass TCP/80</button>
+        <button id="release" class="danger">Release quarantine</button>
+      </div>
+      <div id="message" role="status"></div>
+      <h2 style="margin-top:22px">Active TCP flows</h2>
+      <div id="flows"><p>No flows yet. Send traffic from h1.</p></div>
+    </section>
+    <section class="panel"><h2>Controller event feed</h2><div id="events"></div></section>
+  </div>
+</main>
+<script>
+  const $ = id => document.getElementById(id);
+  $('token').value = sessionStorage.getItem('sfc-token') || '';
+  $('token').addEventListener('input', () => sessionStorage.setItem('sfc-token', $('token').value));
+  async function command(path, payload = {}) {
+    try {
+      const response = await fetch(path, {method: 'POST', headers: {
+        'Content-Type': 'application/json', 'X-SFC-Token': $('token').value},
+        body: JSON.stringify(payload)});
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || `HTTP ${response.status}`);
+      $('message').textContent = 'Controller updated. New traffic will use the new rule.';
+      await refresh();
+    } catch (error) { $('message').textContent = error.message; }
+  }
+  $('chain').onclick = () => command('/sfc/policy', {dst_port: 80, action: 'chain'});
+  $('bypass').onclick = () => command('/sfc/policy', {dst_port: 80, action: 'direct'});
+  $('release').onclick = () => command('/sfc/release');
+  async function refresh() {
+    try {
+      const response = await fetch('/sfc/status', {cache: 'no-store'});
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const state = await response.json();
+      const ready = state.switches.includes(1) && state.switches.includes(2);
+      $('health').textContent = ready ? '● Both switches connected' : '● Waiting for switches';
+      $('health').classList.toggle('warn', !ready);
+      const chained = state.flows.filter(flow => flow.action === 'chain');
+      for (const [id, key] of [['ingress','ingress'], ['firewall','after_firewall'],
+                               ['ids','after_ids'], ['policer','after_policer']]) {
+        $(id).textContent = chained.reduce((sum, flow) => sum + (flow.packets[key] || 0), 0);
+      }
+      const bypass = state.trusted_tcp_ports.includes(80);
+      $('policy').textContent = bypass ? 'direct bypass' : 'firewall → IDS → policer';
+      $('route').textContent = bypass
+        ? 'TCP/80 currently bypasses the VNFs. Change the policy above and the next flow is reclassified.'
+        : 'Trusted TCP/8080 and ICMP bypass all three VNFs over s1 → s2.';
+      const quarantine = Object.entries(state.quarantined);
+      $('quarantine').textContent = quarantine.length
+        ? quarantine.map(([ip, seconds]) => `${ip} (${seconds}s left)`).join(', ') : 'none';
+      $('flows').replaceChildren(...(state.flows.length ? state.flows.map(flow => {
+        const div = document.createElement('div'); div.className = 'flow';
+        const label = document.createElement('strong');
+        label.textContent = `${flow.five_tuple[0]}:${flow.five_tuple[2]} → ${flow.five_tuple[1]}:${flow.five_tuple[3]} · ${flow.action}`;
+        const detail = document.createElement('small'); detail.textContent = JSON.stringify(flow.packets);
+        div.append(label, detail); return div;
+      }) : [Object.assign(document.createElement('p'), {textContent: 'No flows yet. Send traffic from h1.'})]));
+      $('events').replaceChildren(...state.events.slice(0, 14).map(event => {
+        const div = document.createElement('div'); div.className = 'event';
+        for (const [tag, value] of [['time',event.time], ['em',event.kind], ['span',event.detail]]) {
+          const child = document.createElement(tag); child.textContent = value; div.append(child);
+        }
+        return div;
+      }));
+    } catch (error) { $('health').textContent = `● ${error.message}`; $('health').classList.add('warn'); }
+  }
+  refresh(); setInterval(refresh, 2000);
+</script>
+</body>
+</html>

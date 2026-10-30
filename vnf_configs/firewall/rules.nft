@@ -1,0 +1,9 @@
+table bridge sfc_firewall {
+    chain forward {
+        type filter hook forward priority 0; policy accept;
+
+        # Only packets sent into stage one by s1 are subject to this policy.
+        iifname "eth1" ether type vlan vlan id 101 vlan type ip tcp dport 23 counter drop
+        iifname "eth1" ether type vlan vlan id 101 vlan type ip tcp dport 80 counter accept
+    }
+}
